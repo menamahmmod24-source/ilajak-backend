@@ -14,6 +14,7 @@ return new class extends Migration
             $table->string('medical_license_number')->unique();
             $table->string('specialization');
             $table->text('bio')->nullable();
+            $table->decimal('consultation_fee', 8, 2)->default(0.00);
             $table->timestamps();
         });
     }

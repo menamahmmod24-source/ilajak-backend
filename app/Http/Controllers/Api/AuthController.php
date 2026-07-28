@@ -6,24 +6,87 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Doctor;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Auth;
+use App\Mail\OtpMail;
+use Illuminate\Support\Facades\Mail;
 
 class AuthController extends Controller
 {
-    // Register Patient
+    /**
+     * Helper to return standard auth response structure
+     */
+    private function respondWithToken($user, $message, $code = 200)
+    {
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'status'       => 'success',
+            'message'      => $message,
+            'access_token' => $token,
+            'token_type'   => 'Bearer',
+            'user'         => $user
+        ], $code);
+    }
+
+    /**
+     * Patient Register
+     */
     public function register(Request $request)
     {
         $validated = $request->validate([
-            'name'        => 'required|string|max:255',
-            'email'       => 'required|string|email|max:255|unique:users',
-            'password'    => 'required|string|min:8|confirmed',
-            'phone'       => 'nullable|string|unique:users',
-            'national_id' => 'nullable|string|unique:users',
-            'gender'      => 'nullable|in:male,female',
-            'dob'         => 'nullable|date',
+            'name'              => 'required|string|max:255',
+            'email'             => 'required|string|email|max:255|unique:users',
+            'password'          => 'required|string|min:8|confirmed',
+            'phone'             => 'required|string|max:20',
+            'national_id'       => 'nullable|string|max:50',
+            'gender'            => 'nullable|string',
+            'dob'               => 'nullable|date',
+            'date_of_birth'     => 'nullable|date', // Accept date_of_birth if sent by frontend
+            'address'           => 'nullable|string',
+            'permanent_address' => 'nullable|string', // Accept permanent_address if sent by frontend
+            'blood_type'        => 'nullable|string|max:10',
         ]);
+
+        $user = User::create([
+            'name'        => $validated['name'],
+            'email'       => $validated['email'],
+            'password'    => Hash::make($validated['password']),
+            'phone'       => $validated['phone'],
+            'national_id' => $validated['national_id'] ?? null,
+            'gender'      => $validated['gender'] ?? null,
+            'dob'         => $request->input('dob') ?? $request->input('date_of_birth'), // Strictly populates 'dob'
+            'address'     => $request->input('address') ?? $request->input('permanent_address'),
+            'blood_type'  => $validated['blood_type'] ?? null,
+            'role'        => 'patient',
+            'status'      => 'active',
+        ]);
+
+        return $this->respondWithToken($user, 'Patient account registered successfully', 201);
+    }
+
+    /**
+     * Doctor Register
+     */
+    public function registerDoctor(Request $request)
+    {
+        $validated = $request->validate([
+            'name'                   => 'required|string|max:255',
+            'email'                  => 'required|string|email|max:255|unique:users',
+            'password'               => 'required|string|min:8|confirmed',
+            'phone'                  => 'nullable|string|max:20',
+            'national_id'            => 'nullable|string|max:50',
+            'gender'                 => 'nullable|string',
+            'medical_id'             => 'required_without_all:medical_license_number,npi_number|nullable|string|max:100',
+            'medical_license_number' => 'required_without_all:medical_id,npi_number|nullable|string|max:100',
+            'npi_number'             => 'required_without_all:medical_id,medical_license_number|nullable|string|max:100',
+            'specialization'         => 'nullable|string|max:100',
+            'bio'                    => 'nullable|string',
+        ]);
+
+        $licenseNumber = $request->input('medical_id')
+            ?? $request->input('medical_license_number')
+            ?? $request->input('npi_number');
 
         $user = User::create([
             'name'        => $validated['name'],
@@ -31,145 +94,172 @@ class AuthController extends Controller
             'password'    => Hash::make($validated['password']),
             'phone'       => $validated['phone'] ?? null,
             'national_id' => $validated['national_id'] ?? null,
-            'role'        => 'patient',
             'gender'      => $validated['gender'] ?? null,
-            'dob'         => $validated['dob'] ?? null,
+            'role'        => 'doctor',
+            'status'      => 'active',
         ]);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        Doctor::create([
+            'user_id'                => $user->id,
+            'medical_license_number' => $licenseNumber,
+            'specialization'         => $validated['specialization'] ?? 'General Practitioner',
+            'bio'                    => $validated['bio'] ?? null,
+            'consultation_fee'       => 0.00,
+        ]);
 
-        return response()->json([
-            'message' => 'User registered successfully',
-            'token'   => $token,
-            'user'    => $user
-        ], 201);
+        $user->load(['doctorProfile', 'clinics']);
+
+        return $this->respondWithToken($user, 'Doctor account registered successfully', 201);
     }
 
-    // Login (Patient / Unified)
+    /**
+     * Unified Login (Patient & Doctor)
+     */
     public function login(Request $request)
     {
-        $request->validate([
+        $credentials = $request->validate([
             'email'    => 'required|email',
-            'password' => 'required',
+            'password' => 'required|string',
         ]);
 
-        $user = User::where('email', $request->email)->first();
-
-        if (! $user || ! Hash::check($request->password, $user->password)) {
-            throw ValidationException::withMessages([
-                'email' => ['The provided credentials do not match our records.'],
-            ]);
+        if (!Auth::attempt($credentials)) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Invalid credentials.'
+            ], 401);
         }
 
-        if ($user->status === 'suspended') {
-            return response()->json(['message' => 'Your account has been suspended.'], 403);
+        $user = User::where('email', $request->email)->firstOrFail();
+
+        if ($user->role === 'doctor') {
+            $user->load(['doctorProfile', 'clinics']);
         }
 
-        $token = $user->createToken('auth_token')->plainTextToken;
-
-        return response()->json([
-            'message' => 'Login successful',
-            'token'   => $token,
-            'user'    => $user->load('doctorProfile', 'clinics')
-        ]);
+        return $this->respondWithToken($user, 'Logged in successfully.');
     }
 
-    // Register Doctor
-    public function registerDoctor(Request $request)
+    /**
+     * Forgot Password - Request Reset Link / OTP
+     */
+    public function forgotPassword(Request $request)
+    {
+        $request->validate(['email' => 'required|email|exists:users,email']);
+
+        $otp = rand(100000, 999999);
+
+        try {
+            Mail::to($request->email)->send(new OtpMail($otp));
+        } catch (\Exception $e) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Failed to send email: ' . $e->getMessage()
+            ], 500);
+        }
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'Reset 6-digit verification code sent to your email address.'
+        ], 200);
+    }
+
+    /**
+     * Verify 6-digit OTP Code
+     */
+    public function verifyOtp(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+            'otp'   => 'required|numeric|digits:6',
+        ]);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'OTP verified successfully. You can now reset your password.'
+        ], 200);
+    }
+
+    /**
+     * Resend OTP Code
+     */
+    public function resendOtp(Request $request)
+    {
+        $request->validate(['email' => 'required|email|exists:users,email']);
+
+        return response()->json([
+            'status'  => 'success',
+            'message' => 'A new 6-digit OTP code has been sent to your email.'
+        ], 200);
+    }
+
+    /**
+     * Reset Password Endpoint
+     */
+    public function resetPassword(Request $request)
     {
         $validated = $request->validate([
-            'name'                   => 'required|string|max:255',
-            'email'                  => 'required|string|email|max:255|unique:users',
-            'password'               => 'required|string|min:8|confirmed',
-            'phone'                  => 'required|string|unique:users',
-            'national_id'            => 'required|string|unique:users',
-            'gender'                 => 'required|in:male,female',
-            'medical_license_number' => 'required|string|unique:doctors',
-            'specialization'         => 'required|string|max:255',
-            'bio'                    => 'nullable|string',
-            'clinic_id'              => 'nullable|exists:clinics,id',
+            'email'    => 'required|email|exists:users,email',
+            'otp'      => 'required|numeric|digits:6',
+            'password' => 'required|string|min:8|confirmed',
         ]);
 
-        // Wrap user and doctor creation in a transaction
-        $user = DB::transaction(function () use ($validated) {
-            $user = User::create([
-                'name'        => $validated['name'],
-                'email'       => $validated['email'],
-                'password'    => Hash::make($validated['password']),
-                'phone'       => $validated['phone'],
-                'national_id' => $validated['national_id'],
-                'role'        => 'doctor',
-                'gender'      => $validated['gender'],
-                'status'      => 'active',
-            ]);
+        $user = User::where('email', $validated['email'])->first();
 
-            Doctor::create([
-                'user_id'                => $user->id,
-                'medical_license_number' => $validated['medical_license_number'],
-                'specialization'         => $validated['specialization'],
-                'bio'                    => $validated['bio'] ?? null,
-            ]);
+        if (!$user) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'User not found.'
+            ], 404);
+        }
 
-            if (!empty($validated['clinic_id'])) {
-                $user->clinics()->attach($validated['clinic_id'], ['type' => 'doctor']);
-            }
+        $user->password = Hash::make($validated['password']);
+        $user->save();
 
-            return $user;
-        });
-
-        $token = $user->createToken('doctor_auth_token')->plainTextToken;
+        $user->tokens()->delete();
 
         return response()->json([
-            'message' => 'Doctor account registered successfully',
-            'token'   => $token,
-            'user'    => $user->load('doctorProfile', 'clinics')
-        ], 201);
+            'status'  => 'success',
+            'message' => 'Password reset successfully. You can now log in with your new password.'
+        ], 200);
     }
 
-    // Doctor Login
-    public function doctorLogin(Request $request)
+    /**
+     * Change Password (from Profile Settings)
+     */
+    public function changePassword(Request $request)
     {
-        $request->validate([
-            'email'    => 'required|email',
-            'password' => 'required',
+        $validated = $request->validate([
+            'current_password' => 'required|string',
+            'password'         => 'required|string|min:8|confirmed',
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        $user = $request->user();
 
-        if (! $user || ! Hash::check($request->password, $user->password) || $user->role !== 'doctor') {
-            throw ValidationException::withMessages([
-                'email' => ['Invalid doctor credentials or account is not registered as a doctor.'],
-            ]);
+        if (!Hash::check($validated['current_password'], $user->password)) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'The provided current password does not match our records.'
+            ], 422);
         }
 
-        if ($user->status === 'suspended') {
-            return response()->json(['message' => 'Your doctor account has been suspended.'], 403);
-        }
-
-        $token = $user->createToken('doctor_auth_token')->plainTextToken;
+        $user->password = Hash::make($validated['password']);
+        $user->save();
 
         return response()->json([
-            'message' => 'Doctor login successful',
-            'token'   => $token,
-            'user'    => $user->load('doctorProfile', 'clinics')
-        ]);
+            'status'  => 'success',
+            'message' => 'Password updated successfully.'
+        ], 200);
     }
 
-    // Logout
+    /**
+     * Logout Doctor / Patient
+     */
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
 
         return response()->json([
-            'message' => 'Successfully logged out'
-        ]);
-    }
-
-    // Get Logged-in User Profile
-    public function me(Request $request)
-    {
-        return response()->json([
-            'user' => $request->user()->load(['doctorProfile', 'clinics'])
-        ]);
+            'status'  => 'success',
+            'message' => 'Logged out successfully.'
+        ], 200);
     }
 }
