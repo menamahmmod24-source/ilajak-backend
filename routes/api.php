@@ -96,9 +96,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/medical-records', [MedicalRecordController::class, 'index']);
     Route::post('/medical-records', [MedicalRecordController::class, 'store']);
 
-    // Prescriptions
-    Route::get('/prescriptions', [PrescriptionController::class, 'index']);
-    Route::post('/prescriptions', [PrescriptionController::class, 'store']);
+    // --------------------------------------------------------------------
+    // Prescriptions (UI Matched Routes)
+    // --------------------------------------------------------------------
+    Route::get('/prescriptions', [PrescriptionController::class, 'index']);                   // My Prescriptions Screen
+    Route::get('/prescriptions/history', [PrescriptionController::class, 'history']);          // Prescription History Screen
+    Route::get('/prescriptions/{id}', [PrescriptionController::class, 'show']);               // Prescription Details Screen
+    Route::post('/prescriptions', [PrescriptionController::class, 'store']);                  // Add New Prescription
+
+    // Actions
+    Route::post('/prescriptions/{id}/refill', [PrescriptionController::class, 'refill']);      // Refill action
+    Route::post('/prescriptions/{id}/reorder', [PrescriptionController::class, 'reorder']);    // Reorder action
+    Route::get('/prescriptions/{id}/download', [PrescriptionController::class, 'download']);  // PDF export
 
     // --------------------------------------------------------------------
     // Doctor Management Panel (For Doctor Accounts)
