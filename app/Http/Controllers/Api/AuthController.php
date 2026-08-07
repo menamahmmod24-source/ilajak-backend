@@ -36,17 +36,20 @@ class AuthController extends Controller
     {
         $validated = $request->validate([
             'name'              => 'required|string|max:255',
-            'email'             => 'required|string|email|max:255|unique:users',
+            'email'             => 'required|string|email|max:255|unique:users,email',
             'password'          => 'required|string|min:8|confirmed',
-            'phone'             => 'required|string|max:20',
-            'national_id'       => 'nullable|string|max:50',
+            'phone'             => 'required|string|max:20|unique:users,phone',
+            'national_id'       => 'nullable|string|max:50|unique:users,national_id',
             'gender'            => 'nullable|string',
             'dob'               => 'nullable|date',
-            'date_of_birth'     => 'nullable|date', // Accept date_of_birth if sent by frontend
+            'date_of_birth'     => 'nullable|date',
             'address'           => 'nullable|string',
-            'permanent_address' => 'nullable|string', // Accept permanent_address if sent by frontend
+            'permanent_address' => 'nullable|string',
             'blood_type'        => 'nullable|string|max:10',
         ]);
+
+        $dob = $request->input('dob') ?? $request->input('date_of_birth');
+        $address = $request->input('address') ?? $request->input('permanent_address');
 
         $user = User::create([
             'name'        => $validated['name'],
@@ -55,8 +58,8 @@ class AuthController extends Controller
             'phone'       => $validated['phone'],
             'national_id' => $validated['national_id'] ?? null,
             'gender'      => $validated['gender'] ?? null,
-            'dob'         => $request->input('dob') ?? $request->input('date_of_birth'), // Strictly populates 'dob'
-            'address'     => $request->input('address') ?? $request->input('permanent_address'),
+            'dob'         => $dob,
+            'address'     => $address,
             'blood_type'  => $validated['blood_type'] ?? null,
             'role'        => 'patient',
             'status'      => 'active',
@@ -72,7 +75,7 @@ class AuthController extends Controller
     {
         $validated = $request->validate([
             'name'                   => 'required|string|max:255',
-            'email'                  => 'required|string|email|max:255|unique:users',
+            'email'                  => 'required|string|email|max:255|unique:users,email',
             'password'               => 'required|string|min:8|confirmed',
             'phone'                  => 'nullable|string|max:20|unique:users,phone',
             'national_id'            => 'nullable|string|max:50|unique:users,national_id',
