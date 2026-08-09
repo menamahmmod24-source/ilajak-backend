@@ -23,44 +23,44 @@ class DatabaseSeeder extends Seeder
         // 1. Create System Admin & Clinic Admin Users
         // -------------------------------------------------------------
         $systemAdmin = User::create([
-            'name' => 'System Admin',
-            'email' => 'admin@3ilajak.com',
-            'password' => Hash::make('password123'),
-            'phone' => '01000000000',
+            'name'        => 'System Admin',
+            'email'       => 'admin@3ilajak.com',
+            'password'    => Hash::make('password123'),
+            'phone'       => '01000000000',
             'national_id' => '10000000000000',
-            'role' => 'system_admin',
-            'status' => 'active',
-            'gender' => 'male',
+            'role'        => 'system_admin',
+            'status'      => 'active',
+            'gender'      => 'male',
         ]);
 
         $clinicAdminUser = User::create([
-            'name' => 'Clinic Manager',
-            'email' => 'clinicadmin@3ilajak.com',
-            'password' => Hash::make('password123'),
-            'phone' => '01011111111',
+            'name'        => 'Clinic Manager',
+            'email'       => 'clinicadmin@3ilajak.com',
+            'password'    => Hash::make('password123'),
+            'phone'       => '01011111111',
             'national_id' => '20000000000000',
-            'role' => 'clinic_admin',
-            'status' => 'active',
-            'gender' => 'female',
+            'role'        => 'clinic_admin',
+            'status'      => 'active',
+            'gender'      => 'female',
         ]);
 
         // -------------------------------------------------------------
         // 2. Create Clinics
         // -------------------------------------------------------------
         $clinic1 = Clinic::create([
-            'name' => 'Al-Amal Medical Center',
-            'address' => 'Nasr City, Cairo',
-            'phone' => '0223456789',
+            'name'        => 'Al-Amal Medical Center',
+            'address'     => 'Nasr City, Cairo',
+            'phone'       => '0223456789',
             'max_doctors' => 10,
-            'status' => 'active',
+            'status'      => 'active',
         ]);
 
         $clinic2 = Clinic::create([
-            'name' => 'El-Shifa Multi-Speciality Clinic',
-            'address' => 'Dokki, Giza',
-            'phone' => '0237654321',
+            'name'        => 'El-Shifa Multi-Speciality Clinic',
+            'address'     => 'Dokki, Giza',
+            'phone'       => '0237654321',
             'max_doctors' => 5,
-            'status' => 'active',
+            'status'      => 'active',
         ]);
 
         // Attach Clinic Admin to Clinic 1 via clinic_user pivot
@@ -70,45 +70,45 @@ class DatabaseSeeder extends Seeder
         // 3. Create Doctors & Profiles
         // -------------------------------------------------------------
         $doctorUser1 = User::create([
-            'name' => 'Dr. Ahmed Samy',
-            'email' => 'drahmed@3ilajak.com',
-            'password' => Hash::make('password123'),
-            'phone' => '01112345678',
+            'name'        => 'Dr. Ahmed Samy',
+            'email'       => 'drahmed@3ilajak.com',
+            'password'    => Hash::make('password123'),
+            'phone'       => '01112345678',
             'national_id' => '30000000000001',
-            'role' => 'doctor',
-            'status' => 'active',
-            'gender' => 'male',
-            'address' => 'Cairo, Egypt',
+            'role'        => 'doctor',
+            'status'      => 'active',
+            'gender'      => 'male',
+            'address'     => 'Cairo, Egypt',
         ]);
 
         $doctor1 = Doctor::create([
-            'user_id' => $doctorUser1->id,
+            'user_id'                => $doctorUser1->id,
             'medical_license_number' => 'EGY-LIC-1001',
-            'specialization' => 'Cardiology',
-            'bio' => 'Senior Consultant Cardiologist with over 12 years of experience.',
-            'consultation_fee' => 350.00,
+            'specialization'         => 'Cardiology',
+            'bio'                    => 'Senior Consultant Cardiologist with over 12 years of experience.',
+            'consultation_fee'       => 350.00,
         ]);
 
         $clinic1->users()->attach($doctorUser1->id, ['type' => 'doctor']);
 
         $doctorUser2 = User::create([
-            'name' => 'Dr. Sarah Hassan',
-            'email' => 'drsarah@3ilajak.com',
-            'password' => Hash::make('password123'),
-            'phone' => '01212345678',
+            'name'        => 'Dr. Sarah Hassan',
+            'email'       => 'drsarah@3ilajak.com',
+            'password'    => Hash::make('password123'),
+            'phone'       => '01212345678',
             'national_id' => '30000000000002',
-            'role' => 'doctor',
-            'status' => 'active',
-            'gender' => 'female',
-            'address' => 'Giza, Egypt',
+            'role'        => 'doctor',
+            'status'      => 'active',
+            'gender'      => 'female',
+            'address'     => 'Giza, Egypt',
         ]);
 
         $doctor2 = Doctor::create([
-            'user_id' => $doctorUser2->id,
+            'user_id'                => $doctorUser2->id,
             'medical_license_number' => 'EGY-LIC-1002',
-            'specialization' => 'Pediatrics',
-            'bio' => 'Pediatric Consultant specializing in early child wellness.',
-            'consultation_fee' => 250.00,
+            'specialization'         => 'Pediatrics',
+            'bio'                    => 'Pediatric Consultant specializing in early child wellness.',
+            'consultation_fee'       => 250.00,
         ]);
 
         $clinic2->users()->attach($doctorUser2->id, ['type' => 'doctor']);
@@ -117,26 +117,26 @@ class DatabaseSeeder extends Seeder
         // 4. Create Patients & Medical Records
         // -------------------------------------------------------------
         $patient = User::create([
-            'name' => 'John Doe',
-            'email' => 'patient@3ilajak.com',
-            'password' => Hash::make('password123'),
-            'phone' => '01099998888',
+            'name'        => 'John Doe',
+            'email'       => 'patient@3ilajak.com',
+            'password'    => Hash::make('password123'),
+            'phone'       => '01099998888',
             'national_id' => '40000000000001',
-            'role' => 'patient',
-            'status' => 'active',
-            'gender' => 'male',
-            'dob' => '1995-05-15',
-            'address' => 'Maadi, Cairo',
-            'blood_type' => 'A+',
+            'role'        => 'patient',
+            'status'      => 'active',
+            'gender'      => 'male',
+            'dob'         => '1995-05-15',
+            'address'     => 'Maadi, Cairo',
+            'blood_type'  => 'A+',
         ]);
 
         MedicalRecord::create([
-            'patient_id' => $patient->id,
+            'patient_id'       => $patient->id,
             'chronic_diseases' => 'Mild Hypertension',
-            'allergies' => 'Penicillin',
-            'lab_results' => [
+            'allergies'        => 'Penicillin',
+            'lab_results'      => [
                 'blood_pressure' => '130/85',
-                'cholesterol' => '190 mg/dL',
+                'cholesterol'    => '190 mg/dL',
             ],
             'radiology_results' => [
                 'chest_xray' => 'Clear',
@@ -149,22 +149,45 @@ class DatabaseSeeder extends Seeder
         // -------------------------------------------------------------
         // 5. Create Doctor Schedules
         // -------------------------------------------------------------
+
+        // --- Doctor 1: Weekly Recurring Schedules ---
+        $daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+        foreach ($daysOfWeek as $day) {
+            DoctorSchedule::create([
+                'doctor_id'             => $doctor1->id,
+                'clinic_id'             => $clinic1->id,
+                'day_of_week'           => $day,
+                'specific_date'         => null,
+                'start_time'            => '09:00:00',
+                'end_time'              => '17:00:00',
+                'slot_duration_minutes' => 30,
+                'is_day_off'            => $day === 'Friday', // Friday off
+            ]);
+        }
+
+        // --- Doctor 1: Specific Date Schedule Override for 2026-08-12 ---
         DoctorSchedule::create([
-            'doctor_id' => $doctor1->id,
-            'clinic_id' => $clinic1->id,
-            'day_of_week' => 'Monday',
-            'start_time' => '09:00:00',
-            'end_time' => '15:00:00',
+            'doctor_id'             => $doctor1->id,
+            'clinic_id'             => $clinic1->id,
+            'day_of_week'           => 'Wednesday',
+            'specific_date'         => '2026-08-12',
+            'start_time'            => '09:00:00',
+            'end_time'              => '17:00:00',
             'slot_duration_minutes' => 30,
+            'is_day_off'            => false,
         ]);
 
+        // --- Doctor 2: Weekly Schedule ---
         DoctorSchedule::create([
-            'doctor_id' => $doctor2->id,
-            'clinic_id' => $clinic2->id,
-            'day_of_week' => 'Wednesday',
-            'start_time' => '10:00:00',
-            'end_time' => '14:00:00',
+            'doctor_id'             => $doctor2->id,
+            'clinic_id'             => $clinic2->id,
+            'day_of_week'           => 'Wednesday',
+            'specific_date'         => null,
+            'start_time'            => '10:00:00',
+            'end_time'              => '14:00:00',
             'slot_duration_minutes' => 20,
+            'is_day_off'            => false,
         ]);
 
         // -------------------------------------------------------------
@@ -172,19 +195,19 @@ class DatabaseSeeder extends Seeder
         // -------------------------------------------------------------
         $appointment = Appointment::create([
             'patient_id' => $patient->id,
-            'doctor_id' => $doctor1->id,
-            'clinic_id' => $clinic1->id,
-            'date' => '2026-08-03',
-            'slot_time' => '10:00:00',
-            'status' => 'confirmed',
+            'doctor_id'  => $doctor1->id,
+            'clinic_id'  => $clinic1->id,
+            'date'       => '2026-08-12',
+            'slot_time'  => '10:00:00',
+            'status'     => 'confirmed',
         ]);
 
         Prescription::create([
             'appointment_id' => $appointment->id,
-            'patient_id' => $patient->id,
-            'doctor_id' => $doctor1->id,
-            'details' => 'Concor 5mg - Take 1 tablet daily after breakfast.',
-            'file_path' => 'prescriptions/rx_1001.pdf',
+            'patient_id'     => $patient->id,
+            'doctor_id'      => $doctor1->id,
+            'details'        => 'Concor 5mg - Take 1 tablet daily after breakfast.',
+            'file_path'      => 'prescriptions/rx_1001.pdf',
         ]);
     }
 }

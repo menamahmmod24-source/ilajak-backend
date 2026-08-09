@@ -12,59 +12,46 @@ use Carbon\Carbon;
 class AppointmentController extends Controller
 {
     /**
-     * Fetch available time slots for a doctor on a specific date based on schedule.
+     * Mark an appointment as completed and record optional visit notes.
      */
-    public function getAvailableSlots(Request $request, $doctorId)
+    public function completeAppointment(Request $request, $id)
     {
         $validated = $request->validate([
-            'date'      => 'required|date_format:Y-m-d',
-            'clinic_id' => 'nullable|exists:clinics,id', // <-- Ensure this says 'nullable', NOT 'required'
+            'notes' => 'nullable|string',
         ]);
 
-        $dayOfWeek = Carbon::parse($validated['date'])->format('l');
+        $doctor = $request->user()->doctorProfile;
 
-        $query = DoctorSchedule::where('doctor_id', $doctorId)
-            ->where('day_of_week', $dayOfWeek);
-
-        // If clinic_id is provided, filter by it; otherwise get default schedule for that day
-        if (!empty($validated['clinic_id'])) {
-            $query->where('clinic_id', $validated['clinic_id']);
-        }
-
-        $schedule = $query->first();
-
-        if (!$schedule) {
+        if (!$doctor) {
             return response()->json([
-                'status' => 'success',
-                'date'   => $validated['date'],
-                'data'   => []
-            ], 200);
+                'status'  => 'error',
+                'message' => 'Authenticated user is not registered as a doctor.'
+            ], 403);
         }
 
-        $bookedSlots = Appointment::where('doctor_id', $doctorId)
-            ->where('date', $validated['date'])
-            ->whereIn('status', ['pending', 'confirmed'])
-            ->pluck('slot_time')
-            ->toArray();
+        $appointment = Appointment::where('id', $id)
+            ->where('doctor_id', $doctor->id)
+            ->first();
 
-        $slots = [];
-        $startTime = Carbon::parse($schedule->start_time ?? '09:00:00');
-        $endTime   = Carbon::parse($schedule->end_time ?? '17:00:00');
-
-        while ($startTime->lt($endTime)) {
-            $formattedSlot = $startTime->format('H:i');
-            if (!in_array($formattedSlot, $bookedSlots)) {
-                $slots[] = $formattedSlot;
-            }
-            $startTime->addMinutes(30);
+        if (!$appointment) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => 'Appointment not found or not assigned to this doctor.'
+            ], 404);
         }
+
+        $appointment->update([
+            'status' => 'completed',
+            'notes'  => $validated['notes'] ?? $appointment->notes,
+        ]);
 
         return response()->json([
-            'status' => 'success',
-            'date'   => $validated['date'],
-            'data'   => $slots
+            'status'  => 'success',
+            'message' => 'Appointment marked as completed.',
+            'data'    => new AppointmentResource($appointment->load(['patient', 'doctor.user', 'clinic']))
         ], 200);
     }
+
     /**
      * Book an appointment for the authenticated patient.
      */
@@ -80,10 +67,20 @@ class AppointmentController extends Controller
 
         $dayOfWeek = Carbon::parse($validated['date'])->format('l');
 
-        // 1. Verify doctor works on this day/clinic
+        // 1. Verify doctor works on this date or general day of week
+        $dayOfWeek = Carbon::parse($validated['date'])->format('l');
+
         $schedule = DoctorSchedule::where('doctor_id', $validated['doctor_id'])
             ->where('clinic_id', $validated['clinic_id'])
-            ->where('day_of_week', $dayOfWeek)
+            ->where(function ($query) use ($validated, $dayOfWeek) {
+                $query->where('specific_date', $validated['date'])
+                    ->orWhere(function ($subQuery) use ($dayOfWeek) {
+                        $subQuery->whereNull('specific_date')
+                            ->where('day_of_week', $dayOfWeek);
+                    });
+            })
+            ->where('is_day_off', false)
+            ->orderByRaw('specific_date IS NULL ASC')
             ->first();
 
         if (!$schedule) {
@@ -107,7 +104,7 @@ class AppointmentController extends Controller
             ], 422);
         }
 
-        // 3. Create appointment (defaults to confirmed upon successful booking)
+        // 3. Create appointment
         $appointment = Appointment::create([
             'patient_id' => $request->user()->id,
             'doctor_id'  => $validated['doctor_id'],
@@ -135,7 +132,6 @@ class AppointmentController extends Controller
         $query = Appointment::with(['doctor.user', 'clinic'])
             ->where('patient_id', $user->id);
 
-        // Tab Filter Options: ?type=upcoming | ?type=completed | ?type=cancelled
         if ($request->has('type')) {
             $type = strtolower($request->type);
             if ($type === 'upcoming') {
@@ -169,9 +165,8 @@ class AppointmentController extends Controller
 
         $appointment = Appointment::where('id', $id)
             ->where(function ($q) use ($request) {
-                // Allows patient or assigned doctor to modify status
                 $q->where('patient_id', $request->user()->id)
-                    ->orWhere('doctor_id', $request->user()->doctor?->id);
+                    ->orWhere('doctor_id', $request->user()->doctorProfile?->id);
             })
             ->first();
 

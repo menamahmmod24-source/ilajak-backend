@@ -15,6 +15,7 @@ class Appointment extends Model
         'clinic_id',
         'date',
         'slot_time',
+        'notes',
         'status',
     ];
 

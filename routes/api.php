@@ -91,6 +91,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/appointments', [AppointmentController::class, 'index']);
     Route::post('/appointments', [AppointmentController::class, 'store']);
     Route::patch('/appointments/{id}/status', [AppointmentController::class, 'updateStatus']);
+    Route::post('/appointments/{id}/complete', [AppointmentController::class, 'completeAppointment']); // Moved here
 
     // Medical Records & Lab Results
     Route::get('/medical-records', [MedicalRecordController::class, 'index']);
@@ -99,15 +100,15 @@ Route::middleware('auth:sanctum')->group(function () {
     // --------------------------------------------------------------------
     // Prescriptions (UI Matched Routes)
     // --------------------------------------------------------------------
-    Route::get('/prescriptions', [PrescriptionController::class, 'index']);                   // My Prescriptions Screen
-    Route::get('/prescriptions/history', [PrescriptionController::class, 'history']);          // Prescription History Screen
-    Route::get('/prescriptions/{id}', [PrescriptionController::class, 'show']);               // Prescription Details Screen
-    Route::post('/prescriptions', [PrescriptionController::class, 'store']);                  // Add New Prescription
+    Route::get('/prescriptions', [PrescriptionController::class, 'index']);
+    Route::get('/prescriptions/history', [PrescriptionController::class, 'history']);
+    Route::get('/prescriptions/{id}', [PrescriptionController::class, 'show']);
+    Route::post('/prescriptions', [PrescriptionController::class, 'store']);
 
     // Actions
-    Route::post('/prescriptions/{id}/refill', [PrescriptionController::class, 'refill']);      // Refill action
-    Route::post('/prescriptions/{id}/reorder', [PrescriptionController::class, 'reorder']);    // Reorder action
-    Route::get('/prescriptions/{id}/download', [PrescriptionController::class, 'download']);  // PDF export
+    Route::post('/prescriptions/{id}/refill', [PrescriptionController::class, 'refill']);
+    Route::post('/prescriptions/{id}/reorder', [PrescriptionController::class, 'reorder']);
+    Route::get('/prescriptions/{id}/download', [PrescriptionController::class, 'download']);
 
     // --------------------------------------------------------------------
     // Doctor Management Panel (For Doctor Accounts)
@@ -119,4 +120,13 @@ Route::middleware('auth:sanctum')->group(function () {
     // Doctor Schedules Management
     Route::post('/doctor-schedules', [DoctorScheduleController::class, 'store']);
     Route::delete('/doctor-schedules/{id}', [DoctorScheduleController::class, 'destroy']);
+
+    // --------------------------------------------------------------------
+    // Doctor Portal & Dashboard Routes
+    // --------------------------------------------------------------------
+    Route::prefix('doctor')->group(function () {
+        Route::get('/dashboard', [DoctorController::class, 'dashboard']);
+        Route::get('/patients', [DoctorController::class, 'patients']);
+        Route::get('/appointments', [DoctorController::class, 'appointments']);
+    });
 });
